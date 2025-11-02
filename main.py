@@ -16,7 +16,6 @@ SUPABASE_URL="https://nzzkrxxkobustwqmwqyn.supabase.co"
 TOKEN = "MTQzMzUwMDE4NTg3ODcyODczNA.GIowco.81MtRT_Qra5zgnyGO_8k14Yc4XSJQk3msEDB-o"
 GOOGLE_API_KEY = "AIzaSyCkQgQ7LjVw0xPhC3jTyXiELcA06VCJy0Y"
 
-"
 
 # Initialize Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
