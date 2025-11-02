@@ -4,3 +4,4 @@ supabase
 duckduckgo-search
 aiodns
 brotli
+requests
