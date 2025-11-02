@@ -5,3 +5,4 @@ duckduckgo-search
 aiodns
 brotli
 requests
+psutil
