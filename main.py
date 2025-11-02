@@ -14,7 +14,7 @@ from supabase import create_client, Client
 SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56emtyeHhrb2J1c3R3cW13cXluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4ODQzNTQsImV4cCI6MjA3NzQ2MDM1NH0.A2Fw5bszeVhnAtXH3wZC-Vv4H7GaHKxfu2Tk8pyEDfk"
 SUPABASE_URL="https://nzzkrxxkobustwqmwqyn.supabase.co"
 TOKEN = "MTQzMzUwMDE4NTg3ODcyODczNA.GIowco.81MtRT_Qra5zgnyGO_8k14Yc4XSJQk3msEDB-o"
-GOOGLE_API_KEY = "AIzaSyCkQgQ7LjVw0xPhC3jTyXiELcA06VCJy0Y
+GOOGLE_API_KEY = "AIzaSyCkQgQ7LjVw0xPhC3jTyXiELcA06VCJy0Y"
 
 "
 
