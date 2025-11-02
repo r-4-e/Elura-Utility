@@ -9,14 +9,18 @@ import discord, datetime, asyncio, requests
 from discord import app_commands
 from discord.ext import commands
 from supabase import create_client, Client
+from dotenv import load_dotenv
+
 
 # ----------------------------------------------------------
-# CONFIGURATION (Replace with your real values later)
+# LOAD ENVIRONMENT VARIABLES
 # ----------------------------------------------------------
-SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56emtyeHhrb2J1c3R3cW13cXluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4ODQzNTQsImV4cCI6MjA3NzQ2MDM1NH0.A2Fw5bszeVhnAtXH3wZC-Vv4H7GaHKxfu2Tk8pyEDfk"
-SUPABASE_URL="https://nzzkrxxkobustwqmwqyn.supabase.co"
-TOKEN = "MTQzMzUwMDE4NTg3ODcyODczNA.GZ3YHn.I5ChkFf7sNdBEQKezeFMi_iiYDnYNZIiHrZsP8"
-GOOGLE_API_KEY = "AIzaSyCkQgQ7LjVw0xPhC3jTyXiELcA06VCJy0Y"
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+TOKEN = os.getenv("DISCORD_TOKEN")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 
 # Initialize Supabase
@@ -1402,10 +1406,11 @@ async def on_command_error(ctx, error):
     await ctx.reply(embed=embed, mention_author=False)
 
 # ----------------------------------------------------------
-# BOT RUNNER
+# BOT STARTUP
 # ----------------------------------------------------------
-if __name__ == "__main__":
-    try:
-        bot.run(TOKEN)
-    except Exception as e:
-        print(f"❌ Bot startup failed: {e}")
+@bot.event
+async def on_ready():
+    print(f"🚀 Elura Utility is live as {bot.user}")
+    await ensure_tables()
+    await bot.tree.sync()
+    print("🌐 All commands synced successfully.")
