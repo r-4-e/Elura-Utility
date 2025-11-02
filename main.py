@@ -239,7 +239,7 @@ async def pay(interaction: discord.Interaction, member: discord.Member, amount: 
 # ----------------------------------------------------------
 # /leaderboard
 # ----------------------------------------------------------
-@bot.tree.command(name="leaderboard", description="View the richest users.")
+@bot.tree.command(name="lb", description="View the richest users.")
 async def leaderboard(interaction: discord.Interaction):
     data = supabase.table("economy").select("*").eq("guild_id", interaction.guild.id).execute().data
     sorted_data = sorted(data, key=lambda x: (x["wallet"] + x["bank"]), reverse=True)[:10]
@@ -831,7 +831,7 @@ async def messages(interaction: discord.Interaction, member: Optional[discord.Me
 # ----------------------------------------------------------
 # /leaderboard — Show top 10 message senders
 # ----------------------------------------------------------
-@bot.tree.command(name="leaderboard", description="View the top message senders in the server.")
+@bot.tree.command(name="mlb", description="View the top message senders in the server.")
 async def leaderboard(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
 
