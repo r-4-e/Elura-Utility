@@ -2,7 +2,9 @@
 #  ELURA UTILITY – The Ultimate Bot
 #  Silver-Cyan Premium Edition (Billion-Dollar Layout)
 # ==========================================================
-
+import sys, types
+if sys.version_info >= (3, 13):
+    sys.modules["audioop"] = types.ModuleType("audioop")
 import discord, datetime, asyncio, requests
 from discord import app_commands
 from discord.ext import commands
