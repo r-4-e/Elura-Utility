@@ -1414,3 +1414,10 @@ async def on_ready():
     await ensure_tables()
     await bot.tree.sync()
     print("🌐 All commands synced successfully.")
+
+# ----------------------------------------------------------
+# BOT RUN
+# ----------------------------------------------------------
+if __name__ == "__main__":
+    print("🚀 Starting Elura Utility bot...")
+    bot.run(TOKEN)
