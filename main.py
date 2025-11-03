@@ -51,8 +51,10 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="/", intents=intents)
 
-# --- Ensure GUILD_ID is defined early so guild-scoped decorators can reference it ---
-GUILD_ID = 1418641631971643473  # 🔹 Replace with your actual server ID if needed
+# ----------------------------------------------------------
+# GUILD (SERVER) ID for instant slash command sync
+# ----------------------------------------------------------
+GUILD_ID = 1418641631971643473  # 🔹 Replace with your actual server ID
 guild_obj = discord.Object(id=GUILD_ID)
 
 # ----------------------------------------------------------
@@ -269,8 +271,8 @@ async def leaderboard(interaction: discord.Interaction):
 # /reset-economy
 # ----------------------------------------------------------
 @bot.tree.command(name="reset_economy", description="Reset a user’s economy profile. (Admin only)")
-@app_commands.checks.has_permissions(administrator=True)
 @app_commands.guilds(discord.Object(id=GUILD_ID))
+@app_commands.checks.has_permissions(administrator=True)
 async def reset_economy(interaction: discord.Interaction, member: discord.Member):
     supabase.table("economy").delete().eq("user_id", member.id).eq("guild_id", interaction.guild.id).execute()
     await interaction.response.send_message(embed=elura_embed("Economy Reset", f"{member.mention}'s economy data reset.", "♻️"))
@@ -310,13 +312,13 @@ def set_greet_settings(guild_id: int, welcome_channel_id: int, leave_channel_id:
 # /greet_setup
 # ----------------------------------------------------------
 @bot.tree.command(name="greet_setup", description="Configure welcome and leave messages.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(
     welcome_channel="Channel for welcome messages.",
     leave_channel="Channel for leave messages.",
     welcome_message="Custom welcome message. Use {user} for mentions.",
     leave_message="Custom goodbye message. Use {user} for mentions."
 )
-@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def greet_setup(
     interaction: discord.Interaction,
     welcome_channel: discord.TextChannel,
@@ -478,7 +480,6 @@ def get_cases(guild_id: int, user_id: int):
 # ----------------------------------------------------------
 @bot.tree.command(name="mutesetup", description="Configure or auto-create the mute role.")
 @app_commands.describe(role="Select the mute role (optional).")
-@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def mutesetup(interaction: discord.Interaction, role: Optional[discord.Role] = None):
     if not await elura_permission_check(interaction, "mutesetup"):
         return
@@ -486,7 +487,24 @@ async def mutesetup(interaction: discord.Interaction, role: Optional[discord.Rol
     guild = interaction.guild
 
     # Auto-create if not provided
-    ile.id}).eq("guild_id", guild.id).execute()
+    if role is None:
+        role = discord.utils.get(guild.roles, name="Muted")
+        if not role:
+            role = await guild.create_role(name="Muted", reason="Elura Mute System Setup")
+
+        # Update channel permissions
+        for channel in guild.channels:
+            try:
+                await channel.set_permissions(role, send_messages=False, speak=False, add_reactions=False)
+            except:
+                continue
+
+    # Store role in database
+    existing = supabase.table("mute_settings").select("*").eq("guild_id", guild.id).execute()
+    if not existing.data:
+        supabase.table("mute_settings").insert({"guild_id": guild.id, "mute_role": role.id}).execute()
+    else:
+        supabase.table("mute_settings").update({"mute_role": role.id}).eq("guild_id", guild.id).execute()
 
     await interaction.response.send_message(embed=elura_embed("Mute Setup Complete", f"✅ Mute role set to {role.mention}", "🔇"))
 
@@ -494,6 +512,7 @@ async def mutesetup(interaction: discord.Interaction, role: Optional[discord.Rol
 # /warn
 # ----------------------------------------------------------
 @bot.tree.command(name="warn", description="Warn a member with a reason.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(member="Member to warn.", reason="Reason for warning.")
 async def warn(interaction: discord.Interaction, member: discord.Member, reason: str):
     if not await elura_permission_check(interaction, "warn"):
@@ -514,6 +533,7 @@ async def warn(interaction: discord.Interaction, member: discord.Member, reason:
 # /unwarn
 # ----------------------------------------------------------
 @bot.tree.command(name="unwarn", description="Remove a user's last warning.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(member="Member to unwarn.")
 async def unwarn(interaction: discord.Interaction, member: discord.Member):
     if not await elura_permission_check(interaction, "unwarn"):
@@ -534,7 +554,8 @@ async def unwarn(interaction: discord.Interaction, member: discord.Member):
 # ----------------------------------------------------------
 # /warnings
 # ----------------------------------------------------------
-@bot.tree.command(name="warnings", description="Check all warnings for a user.")
+@bot.tree.command(name="warnings", description="Check all warnings for a user.") 
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(member="Member to check warnings for.")
 async def warnings(interaction: discord.Interaction, member: discord.Member):
     if not await elura_permission_check(interaction, "warnings"):
@@ -558,6 +579,7 @@ async def warnings(interaction: discord.Interaction, member: discord.Member):
 # /kick
 # ----------------------------------------------------------
 @bot.tree.command(name="kick", description="Kick a user from the server.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(member="Member to kick.", reason="Reason for kick.")
 async def kick(interaction: discord.Interaction, member: discord.Member, reason: str):
     if not await elura_permission_check(interaction, "kick"):
@@ -571,6 +593,7 @@ async def kick(interaction: discord.Interaction, member: discord.Member, reason:
 # /ban
 # ----------------------------------------------------------
 @bot.tree.command(name="ban", description="Ban a user from the server.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(member="Member to ban.", reason="Reason for ban.")
 async def ban(interaction: discord.Interaction, member: discord.Member, reason: str):
     if not await elura_permission_check(interaction, "ban"):
@@ -584,6 +607,7 @@ async def ban(interaction: discord.Interaction, member: discord.Member, reason: 
 # /mute
 # ----------------------------------------------------------
 @bot.tree.command(name="mute", description="Mute a member using the configured mute role.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(member="Member to mute.", reason="Reason for mute.")
 async def mute(interaction: discord.Interaction, member: discord.Member, reason: str):
     if not await elura_permission_check(interaction, "mute"):
@@ -615,6 +639,7 @@ async def mute(interaction: discord.Interaction, member: discord.Member, reason:
 import aiohttp
 
 @bot.tree.command(name="tr", description="Translate a replied foreign message to your chosen language.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(lang="Target language to translate into (e.g. en, fr, ja, hi, es, etc.)")
 async def tr(interaction: discord.Interaction, lang: str):
     await interaction.response.defer(thinking=True)
@@ -695,6 +720,7 @@ async def tr(interaction: discord.Interaction, lang: str):
 import urllib.parse
 
 @bot.tree.command(name="search", description="Search the web using DuckDuckGo.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(query="What you want to search for.")
 async def search(interaction: discord.Interaction, query: str):
     await interaction.response.defer(thinking=True)
@@ -807,6 +833,7 @@ async def on_message(message: discord.Message):
 # /messages — View message count
 # ----------------------------------------------------------
 @bot.tree.command(name="messages", description="Check how many messages you or another user have sent.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(member="The member whose message count you want to view.")
 async def messages(interaction: discord.Interaction, member: Optional[discord.Member] = None):
     member = member or interaction.user
@@ -835,6 +862,7 @@ async def messages(interaction: discord.Interaction, member: Optional[discord.Me
 # /leaderboard — Show top 10 message senders
 # ----------------------------------------------------------
 @bot.tree.command(name="mlb", description="View the top message senders in the server.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def leaderboard(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
 
@@ -895,6 +923,7 @@ ensure_counting_table()
 # /countsetup
 # ----------------------------------------------------------
 @bot.tree.command(name="countsetup", description="Setup or change the counting channel.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 @app_commands.describe(channel="The channel where counting will happen.")
 async def countsetup(interaction: discord.Interaction, channel: discord.TextChannel):
     try:
@@ -1027,6 +1056,7 @@ ensure_setup_table()
 # /setup – Automatic Server Configuration
 # ----------------------------------------------------------
 @bot.tree.command(name="setup", description="Automatically set up essential channels and logs for your server.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def setup(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
 
@@ -1248,6 +1278,7 @@ class HelpView(View):
 # MAIN HELP COMMAND
 # ----------------------------------------------------------
 @bot.tree.command(name="help", description="View all Elura commands interactively.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def help(interaction: discord.Interaction):
     user_roles = [r.id for r in interaction.user.roles]
     can_view_mod = MOD_HELP_ROLE in user_roles
@@ -1405,11 +1436,6 @@ async def on_command_error(ctx, error):
     await ctx.reply(embed=embed, mention_author=False)
 
 
-# ----------------------------------------------------------
-# GUILD (SERVER) ID for instant slash command sync
-# ----------------------------------------------------------
-GUILD_ID = 1418641631971643473  # 🔹 Replace with your actual server ID
-guild_obj = discord.Object(id=GUILD_ID)
 
 
 # === READY EVENT ===
