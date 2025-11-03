@@ -1406,6 +1406,37 @@ async def on_command_error(ctx, error):
     embed = elura_embed("Command Error", f"```{error}```", "⚠️", discord.Color.red())
     await ctx.reply(embed=embed, mention_author=False)
 
+
+# ----------------------------------------------------------
+# GUILD (SERVER) ID for instant slash command sync
+# ----------------------------------------------------------
+GUILD_ID = 1418641631971643473  # 🔹 Replace with your actual server ID
+guild_obj = discord.Object(id=GUILD_ID)
+
+
+# ----------------------------------------------------------
+# TEST COMMAND – /ping
+# ----------------------------------------------------------
+@bot.tree.command(name="ping", description="Check if the bot is alive")
+@app_commands.guilds(guild_obj)
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message("🏓 Pong! Elura is alive.")
+
+
+# ----------------------------------------------------------
+# BOT READY EVENT
+# ----------------------------------------------------------
+@bot.event
+async def on_ready():
+    print(f"🚀 Elura Utility is live as {bot.user}")
+    await ensure_tables()
+    try:
+        guild = discord.Object(id=GUILD_ID)
+        synced = await bot.tree.sync(guild=guild)
+        print(f"🌐 Synced {len(synced)} commands to guild {GUILD_ID}")
+    except Exception as e:
+        print(f"⚠️ Guild command sync failed: {e}")
+        
 # ----------------------------------------------------------
 # BOT STARTUP
 # ----------------------------------------------------------
