@@ -1450,21 +1450,6 @@ async def on_command_error(ctx, error):
     embed = elura_embed("Command Error", f"```{error}```", "⚠️", discord.Color.red())
     await ctx.reply(embed=embed, mention_author=False)
 
-
-
-
-# === READY EVENT ===
-@bot.event
-async def on_ready():
-    print(f"🚀 Elura Utility is live as {bot.user}")
-    await asyncio.sleep(2)
-    try:
-        guild = discord.Object(id=GUILD_ID)
-        synced = await bot.tree.sync(guild=guild)
-        print(f"🌐 Synced {len(synced)} command(s) to guild {GUILD_ID}")
-    except Exception as e:
-        print(f"⚠️ Sync failed: {e}")
-
 # === PING COMMAND ===
 @bot.tree.command(name="ping", description="Check if Elura is alive")
 @app_commands.guilds(discord.Object(id=GUILD_ID))
@@ -1490,7 +1475,20 @@ def run_web():
 # Start Flask server in a background thread
 threading.Thread(target=run_web, daemon=True).start()
 
-
+# ----------------------------------------------------------
+# READY EVENT
+# ----------------------------------------------------------
+@bot.event
+async def on_ready():
+    print(f"🚀 Elura Utility is live as {bot.user}")
+    await asyncio.sleep(2)
+    try:
+        guild = discord.Object(id=GUILD_ID)
+        synced = await bot.tree.sync(guild=guild)
+        print(f"🌐 Synced {len(synced)} command(s) to guild {GUILD_ID}")
+    except Exception as e:
+        print(f"⚠️ Sync failed: {e}")
+        
 # ----------------------------------------------------------
 # BOT RUN
 # ----------------------------------------------------------
