@@ -51,6 +51,10 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="/", intents=intents)
 
+# --- Ensure GUILD_ID is defined early so guild-scoped decorators can reference it ---
+GUILD_ID = 1418641631971643473  # 🔹 Replace with your actual server ID if needed
+guild_obj = discord.Object(id=GUILD_ID)
+
 # ----------------------------------------------------------
 # STYLING
 # ----------------------------------------------------------
@@ -122,6 +126,7 @@ def update_user_economy(user_id: int, guild_id: int, wallet=None, bank=None):
 # /balance
 # ----------------------------------------------------------
 @bot.tree.command(name="balance", description="View your or another member’s balance.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def balance(interaction: discord.Interaction, member: discord.Member = None):
     member = member or interaction.user
     record = get_user_economy(member.id, interaction.guild.id)
@@ -141,6 +146,7 @@ async def balance(interaction: discord.Interaction, member: discord.Member = Non
 daily_cooldowns = {}
 
 @bot.tree.command(name="daily", description="Collect your daily reward.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def daily(interaction: discord.Interaction):
     uid = interaction.user.id
     now = datetime.datetime.utcnow()
@@ -167,6 +173,7 @@ async def daily(interaction: discord.Interaction):
 work_cooldowns = {}
 
 @bot.tree.command(name="work", description="Work to earn credits.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def work(interaction: discord.Interaction):
     uid = interaction.user.id
     now = datetime.datetime.utcnow()
@@ -189,6 +196,7 @@ async def work(interaction: discord.Interaction):
 # /deposit
 # ----------------------------------------------------------
 @bot.tree.command(name="deposit", description="Deposit money into your bank.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def deposit(interaction: discord.Interaction, amount: int):
     record = get_user_economy(interaction.user.id, interaction.guild.id)
     if amount > record["wallet"]:
@@ -207,6 +215,7 @@ async def deposit(interaction: discord.Interaction, amount: int):
 # /withdraw
 # ----------------------------------------------------------
 @bot.tree.command(name="withdraw", description="Withdraw money from your bank.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def withdraw(interaction: discord.Interaction, amount: int):
     record = get_user_economy(interaction.user.id, interaction.guild.id)
     if amount > record["bank"]:
@@ -225,6 +234,7 @@ async def withdraw(interaction: discord.Interaction, amount: int):
 # /pay
 # ----------------------------------------------------------
 @bot.tree.command(name="pay", description="Send credits to another member.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def pay(interaction: discord.Interaction, member: discord.Member, amount: int):
     if member.id == interaction.user.id:
         await interaction.response.send_message(embed=elura_embed("Payment", "You can’t pay yourself.", "🚫"))
@@ -245,6 +255,7 @@ async def pay(interaction: discord.Interaction, member: discord.Member, amount: 
 # /leaderboard
 # ----------------------------------------------------------
 @bot.tree.command(name="lb", description="View the richest users.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def leaderboard(interaction: discord.Interaction):
     data = supabase.table("economy").select("*").eq("guild_id", interaction.guild.id).execute().data
     sorted_data = sorted(data, key=lambda x: (x["wallet"] + x["bank"]), reverse=True)[:10]
@@ -259,6 +270,7 @@ async def leaderboard(interaction: discord.Interaction):
 # ----------------------------------------------------------
 @bot.tree.command(name="reset_economy", description="Reset a user’s economy profile. (Admin only)")
 @app_commands.checks.has_permissions(administrator=True)
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def reset_economy(interaction: discord.Interaction, member: discord.Member):
     supabase.table("economy").delete().eq("user_id", member.id).eq("guild_id", interaction.guild.id).execute()
     await interaction.response.send_message(embed=elura_embed("Economy Reset", f"{member.mention}'s economy data reset.", "♻️"))
@@ -304,6 +316,7 @@ def set_greet_settings(guild_id: int, welcome_channel_id: int, leave_channel_id:
     welcome_message="Custom welcome message. Use {user} for mentions.",
     leave_message="Custom goodbye message. Use {user} for mentions."
 )
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def greet_setup(
     interaction: discord.Interaction,
     welcome_channel: discord.TextChannel,
@@ -326,6 +339,7 @@ async def greet_setup(
 # /greet_test
 # ----------------------------------------------------------
 @bot.tree.command(name="greet_test", description="Preview the welcome and leave messages.")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def greet_test(interaction: discord.Interaction):
     settings = get_greet_settings(interaction.guild.id)
     if not settings:
@@ -464,6 +478,7 @@ def get_cases(guild_id: int, user_id: int):
 # ----------------------------------------------------------
 @bot.tree.command(name="mutesetup", description="Configure or auto-create the mute role.")
 @app_commands.describe(role="Select the mute role (optional).")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
 async def mutesetup(interaction: discord.Interaction, role: Optional[discord.Role] = None):
     if not await elura_permission_check(interaction, "mutesetup"):
         return
@@ -471,24 +486,7 @@ async def mutesetup(interaction: discord.Interaction, role: Optional[discord.Rol
     guild = interaction.guild
 
     # Auto-create if not provided
-    if role is None:
-        role = discord.utils.get(guild.roles, name="Muted")
-        if not role:
-            role = await guild.create_role(name="Muted", reason="Elura Mute System Setup")
-
-        # Update channel permissions
-        for channel in guild.channels:
-            try:
-                await channel.set_permissions(role, send_messages=False, speak=False, add_reactions=False)
-            except:
-                continue
-
-    # Store role in database
-    existing = supabase.table("mute_settings").select("*").eq("guild_id", guild.id).execute()
-    if not existing.data:
-        supabase.table("mute_settings").insert({"guild_id": guild.id, "mute_role": role.id}).execute()
-    else:
-        supabase.table("mute_settings").update({"mute_role": role.id}).eq("guild_id", guild.id).execute()
+    ile.id}).eq("guild_id", guild.id).execute()
 
     await interaction.response.send_message(embed=elura_embed("Mute Setup Complete", f"✅ Mute role set to {role.mention}", "🔇"))
 
