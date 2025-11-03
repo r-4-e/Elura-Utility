@@ -45,7 +45,7 @@ async def ensure_tables():
 # BOT INTENTS & CLIENT
 # ----------------------------------------------------------
 intents = discord.Intents.default()
-intents.guilde = True
+intents.guilds = True
 intents.members = True
 intents.message_content = True
 
