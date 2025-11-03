@@ -1415,6 +1415,27 @@ async def on_ready():
     await bot.tree.sync()
     print("🌐 All commands synced successfully.")
 
+
+# ----------------------------------------------------------
+# KEEP-ALIVE (For Render)
+# ----------------------------------------------------------
+import threading
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Elura Utility is online and running!"
+
+def run_web():
+    # Use port 10000 (Render-compatible)
+    app.run(host="0.0.0.0", port=10000)
+
+# Start Flask server in a background thread
+threading.Thread(target=run_web, daemon=True).start()
+
+
 # ----------------------------------------------------------
 # BOT RUN
 # ----------------------------------------------------------
