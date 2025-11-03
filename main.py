@@ -1414,39 +1414,23 @@ GUILD_ID = 1418641631971643473  # 🔹 Replace with your actual server ID
 guild_obj = discord.Object(id=GUILD_ID)
 
 
-# ----------------------------------------------------------
-# TEST COMMAND – /ping
-# ----------------------------------------------------------
-@bot.tree.command(name="ping", description="Check if the bot is alive")
-@app_commands.guilds(guild_obj)
-async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message("🏓 Pong! Elura is alive.")
-
-
-# ----------------------------------------------------------
-# BOT READY EVENT
-# ----------------------------------------------------------
+# === READY EVENT ===
 @bot.event
 async def on_ready():
     print(f"🚀 Elura Utility is live as {bot.user}")
-    await ensure_tables()
+    await asyncio.sleep(2)
     try:
         guild = discord.Object(id=GUILD_ID)
         synced = await bot.tree.sync(guild=guild)
-        print(f"🌐 Synced {len(synced)} commands to guild {GUILD_ID}")
+        print(f"🌐 Synced {len(synced)} command(s) to guild {GUILD_ID}")
     except Exception as e:
-        print(f"⚠️ Guild command sync failed: {e}")
-        
-# ----------------------------------------------------------
-# BOT STARTUP
-# ----------------------------------------------------------
-@bot.event
-async def on_ready():
-    print(f"🚀 Elura Utility is live as {bot.user}")
-    await ensure_tables()
-    await bot.tree.sync()
-    print("🌐 All commands synced successfully.")
+        print(f"⚠️ Sync failed: {e}")
 
+# === PING COMMAND ===
+@bot.tree.command(name="ping", description="Check if Elura is alive")
+@app_commands.guilds(discord.Object(id=GUILD_ID))
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message("🏓 Pong! Elura is alive and responsive.", ephemeral=True)
 
 # ----------------------------------------------------------
 # KEEP-ALIVE (For Render)
