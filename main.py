@@ -81,7 +81,8 @@ def elura_embed(title, desc, emoji="💎"):
 async def on_ready():
     guild = discord.Object(id=GUILD_ID)
     synced = await bot.tree.sync(guild=guild)
-    print(f"✅ Synced {len(synced)} guild commands to {GUILD_ID}")    print(f"✅ {bot.user} is now online and synchronized.")
+    print(f"✅ Synced {len(synced)} guild commands to {GUILD_ID}")    
+    print(f"✅ {bot.user} is now online and synchronized.")
     print("💎 Elura Utility Systems → READY")
     print("-------------------------------------")
     print("Modules:")
