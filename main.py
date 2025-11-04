@@ -79,8 +79,9 @@ def elura_embed(title, desc, emoji="💎"):
 # ----------------------------------------------------------
 @bot.event
 async def on_ready():
-    await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
-    print(f"✅ {bot.user} is now online and synchronized.")
+    guild = discord.Object(id=GUILD_ID)
+    synced = await bot.tree.sync(guild=guild)
+    print(f"✅ Synced {len(synced)} guild commands to {GUILD_ID}")    print(f"✅ {bot.user} is now online and synchronized.")
     print("💎 Elura Utility Systems → READY")
     print("-------------------------------------")
     print("Modules:")
@@ -97,6 +98,12 @@ async def on_ready():
     print(" → WebHooker System")
     print("-------------------------------------")
 
+
+@app_commands.guilds(discord.Object(id=GUILD_ID))
+@bot.tree.command(name="test_guild", description="Testing guild command visibility.")
+async def test_guild(interaction: discord.Interaction):
+    await interaction.response.send_message("✅ Guild command visible!")
+    
 # ==========================================================
 #  ELURA ECONOMY SYSTEM
 #  Premium-tier, modeled after UnbelievaBoat
