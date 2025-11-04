@@ -74,32 +74,6 @@ def elura_embed(title, desc, emoji="💎"):
     e.timestamp = datetime.datetime.utcnow()
     return e
 
-# ----------------------------------------------------------
-# STARTUP EVENT
-# ----------------------------------------------------------
-@bot.event
-async def on_ready():
-    guild = discord.Object(id=GUILD_ID)
-    synced = await bot.tree.sync(guild=guild)
-    print(f"✅ Synced {len(synced)} guild commands to {GUILD_ID}")    
-    print(f"✅ {bot.user} is now online and synchronized.")
-    print("💎 Elura Utility Systems → READY")
-    print("-------------------------------------")
-    print("Modules:")
-    print(" → Economy")
-    print(" → Welcomer")
-    print(" → Punishments")
-    print(" → Translate")
-    print(" → Search")
-    print(" → Message Counter")
-    print(" → Counting Channel")
-    print(" → Setup")
-    print(" → Help")
-    print(" → Privacy")
-    print(" → WebHooker System")
-    print("-------------------------------------")
-
-
 @app_commands.guilds(discord.Object(id=GUILD_ID))
 @bot.tree.command(name="test_guild", description="Testing guild command visibility.")
 async def test_guild(interaction: discord.Interaction):
@@ -149,7 +123,6 @@ async def balance(interaction: discord.Interaction, member: discord.Member = Non
         "💸"
     )
     await interaction.response.send_message(embed=embed)
-
 
 # ----------------------------------------------------------
 # /daily
@@ -1483,6 +1456,33 @@ def run_web():
 # Start Flask server in a background thread
 threading.Thread(target=run_web, daemon=True).start()
 
+
+
+# ----------------------------------------------------------
+# STARTUP EVENT
+# ----------------------------------------------------------
+@bot.event
+async def on_ready():
+    guild = discord.Object(id=GUILD_ID)
+    synced = await bot.tree.sync(guild=guild)
+    print(f"✅ Synced {len(synced)} guild commands to {GUILD_ID}")    
+    print(f"✅ {bot.user} is now online and synchronized.")
+    print("💎 Elura Utility Systems → READY")
+    print("-------------------------------------")
+    print("Modules:")
+    print(" → Economy")
+    print(" → Welcomer")
+    print(" → Punishments")
+    print(" → Translate")
+    print(" → Search")
+    print(" → Message Counter")
+    print(" → Counting Channel")
+    print(" → Setup")
+    print(" → Help")
+    print(" → Privacy")
+    print(" → WebHooker System")
+    print("-------------------------------------")
+    
 # ----------------------------------------------------------
 # READY EVENT
 # ----------------------------------------------------------
