@@ -79,7 +79,7 @@ def elura_embed(title, desc, emoji="💎"):
 # ----------------------------------------------------------
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
+    await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
     print(f"✅ {bot.user} is now online and synchronized.")
     print("💎 Elura Utility Systems → READY")
     print("-------------------------------------")
