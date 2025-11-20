@@ -1,5 +1,5 @@
-discord.py==2.3.2
-python-dotenv==1.0.1
-deep-translator==1.11.4
-aiofiles==23.2.1
-requests==2.31.0
+discord.py
+python-dotenv
+deep-translator
+aiofiles
+requests
