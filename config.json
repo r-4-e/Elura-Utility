@@ -1,1 +1,44 @@
+{
+    "token": "YOUR_BOT_TOKEN_HERE",
 
+    "founder_role": "1438894978230259793",
+
+    "punishment_roles": {
+        "tier1": ["1438894988237738087"],
+        "tier2": ["1438894985909899285", "1438894986891497607"],
+        "tier3": ["1438894984677031957"],
+        "tier4": [
+            "1438894983456227418",
+            "1438894982537810081",
+            "1438894980646305922",
+            "1438894979119579169",
+            "1438894978230259793"
+        ]
+    },
+
+    "guild_settings": {
+        "welcome_channel": null,
+        "leave_channel": null,
+        "logs_channel": null,
+        "count_channel": null,
+        "economy_channel": null,
+
+        "welcome_message": "Welcome **{usermention}**! You’ve successfully joined **{guildname}**. We hope you enjoy your stay.",
+        "leave_message": "**{usermention}** has left **{guildname}**. We hope to see them again in the future.",
+
+        "welcome_color": "#1e466f",
+        "leave_color": "#ff3b3b"
+    },
+
+    "economy": {
+        "starting_balance": 0,
+        "work_min": 50,
+        "work_max": 150,
+        "rob_min": 20,
+        "rob_max": 200,
+        "cooldowns": {
+            "work": 3600,
+            "rob": 7200
+        }
+    }
+    }
