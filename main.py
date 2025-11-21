@@ -11,16 +11,13 @@ import json, aiofiles, asyncio, os, datetime, random
 from deep_translator import GoogleTranslator
 from dotenv import load_dotenv
 
-load_dotenv()
-
-TOKEN = os.getenv("TOKEN")
-
 # ------------------------------------------------------------
 # Load or Create Config
 # ------------------------------------------------------------
 if not os.path.exists("config.json"):
     with open("config.json", "w") as f:
         json.dump({
+            "token": "",
             "guild_id": "",
             "welcome_channel": "",
             "leave_channel": "",
@@ -40,8 +37,12 @@ if not os.path.exists("config.json"):
             ]
         }, f, indent=4)
 
+# Load config
 with open("config.json", "r") as f:
     config = json.load(f)
+
+# Get bot token from config
+token = config["token"]
 
 # ------------------------------------------------------------
 # JSON Databases Auto-Created
@@ -1213,3 +1214,39 @@ async def help_cmd(interaction: discord.Interaction):
     )
     embed.set_footer(text="Elura Utility • Professional and clean interface")
     await interaction.response.send_message(embed=embed, view=HelpView())
+
+# ------------------------------
+# On Ready Event
+# ------------------------------
+@bot.event
+async def on_ready():
+    print(f"\n✅ Logged in as {bot.user} ({bot.user.id})")
+    print(f"🌐 Connected to {len(bot.guilds)} guild(s)")
+    print(f"⌚ Startup time: {now_utc()}\n")
+
+    # Send a professional ready embed to the log channel if set
+    if log_channel_id:
+        try:
+            guild = bot.get_guild(int(guild_id)) if guild_id else None
+            log_channel = guild.get_channel(int(log_channel_id)) if guild else None
+            if log_channel:
+                embed = discord.Embed(
+                    title="🤖 Elura Utility • Bot Online",
+                    description=f"Bot **{bot.user.name}** is now online and ready!",
+                    color=discord.Color.green(),
+                    timestamp=datetime.now(timezone.utc)
+                )
+                embed.add_field(name="Servers Connected", value=str(len(bot.guilds)), inline=True)
+                embed.add_field(name="Startup Time", value=now_utc(), inline=True)
+                embed.set_footer(text="Elura Utility • Professional Bot Startup")
+                await log_channel.send(embed=embed)
+        except Exception as e:
+            print(f"⚠️ Failed to send ready embed: {e}")
+
+# ------------------------------
+# Run Bot
+# ------------------------------
+if token:
+    bot.run(token)
+else:
+    print("❌ No token found in config.json! Please add your bot token under the 'token' key.")
