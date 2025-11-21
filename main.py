@@ -7,107 +7,143 @@
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands, Embed, Interaction, File
-import json, aiofiles, asyncio, os, datetime, random
 from deep_translator import GoogleTranslator
 from dotenv import load_dotenv
 
-# ------------------------------------------------------------
-# Load or create config
-# ------------------------------------------------------------
-if not os.path.exists("config.json"):
-    default_config = {
+import json
+import os
+import aiofiles
+
+# ===========================================
+# ALL-IN-ONE JSON FILE
+# ===========================================
+ALLIANCE_FILE = "alliance.json"
+
+# Default structure
+default_alliance = {
+    "bot": {
         "token": "",
-        "founder_role": "1438894978230259793",
-        "punishment_roles": {
-            "tier1": [],
-            "tier2": [],
-            "tier3": [],
-            "tier4": []
-        },
-        "guild_settings": {
-            "welcome_channel": None,
-            "leave_channel": None,
-            "logs_channel": None,
-            "count_channel": None,
-            "economy_channel": None,
-            "welcome_message": "Welcome **{usermention}**! You’ve successfully joined **{guildname}**. We hope you enjoy your stay.",
-            "leave_message": "**{usermention}** has left **{guildname}**. We hope to see them again in the future.",
-            "welcome_color": "#1e466f",
-            "leave_color": "#ff3b3b"
-        },
-        "economy": {
-            "starting_balance": 0,
-            "work_min": 50,
-            "work_max": 150,
-            "rob_min": 20,
-            "rob_max": 200,
-            "cooldowns": {
-                "work": 3600,
-                "rob": 7200
-            }
-        }
-    }
-    with open("config.json", "w") as f:
-        json.dump(default_config, f, indent=4)
+        "founder_role": "1438894978230259793"
+    },
+    "punishment_roles": {
+        "tier1": [],
+        "tier2": [],
+        "tier3": [],
+        "tier4": []
+    },
+    "guild_settings": {
+        "guild_id": None,
+        "welcome_channel": None,
+        "leave_channel": None,
+        "logs_channel": None,
+        "count_channel": None,
+        "economy_channel": None,
+        "welcome_message": "Welcome **{usermention}**! You’ve successfully joined **{guildname}**. We hope you enjoy your stay.",
+        "leave_message": "**{usermention}** has left **{guildname}**. We hope to see them again in the future.",
+        "welcome_color": "#1e466f",
+        "leave_color": "#ff3b3b"
+    },
+    "economy": {
+        "starting_balance": 0,
+        "work_min": 50,
+        "work_max": 150,
+        "rob_min": 20,
+        "rob_max": 200,
+        "cooldowns": {"work": 3600, "rob": 7200},
+        "users": {}
+    },
+    "punishments": {
+        "cases": [],
+        "last_case_id": 0
+    },
+    "counting": {
+        "current_number": 0,
+        "last_user": None
+    },
+    "other": {}
+}
 
-# ------------------------------------------------------------
-# Load config
-# ------------------------------------------------------------
-with open("config.json", "r") as f:
-    config = json.load(f)
+# -------------------------------------------
+# Load alliance.json safely
+# -------------------------------------------
+def load_alliance():
+    if not os.path.exists(ALLIANCE_FILE):
+        with open(ALLIANCE_FILE, "w") as f:
+            json.dump(default_alliance, f, indent=4)
+        return default_alliance
 
-# Pull bot token
-token = config["token"]
+    try:
+        with open(ALLIANCE_FILE, "r") as f:
+            data = json.load(f)
+            # Ensure all top-level keys exist
+            for key, value in default_alliance.items():
+                if key not in data:
+                    data[key] = value
+            return data
+    except (json.JSONDecodeError, ValueError):
+        with open(ALLIANCE_FILE, "w") as f:
+            json.dump(default_alliance, f, indent=4)
+        return default_alliance
 
-# Punishment tiers
-FOUNDER_ROLE = config["founder_role"]
-TIER1 = config["punishment_roles"].get("tier1", [])
-TIER2 = config["punishment_roles"].get("tier2", [])
-TIER3 = config["punishment_roles"].get("tier3", [])
-TIER4 = config["punishment_roles"].get("tier4", [])
+# -------------------------------------------
+# Save alliance.json
+# -------------------------------------------
+def save_alliance(data):
+    with open(ALLIANCE_FILE, "w") as f:
+        json.dump(data, f, indent=4)
 
-# Guild channels & settings
-WELCOME_CHANNEL = config["guild_settings"].get("welcome_channel")
-LEAVE_CHANNEL = config["guild_settings"].get("leave_channel")
-LOGS_CHANNEL = config["guild_settings"].get("logs_channel")
-COUNT_CHANNEL = config["guild_settings"].get("count_channel")
-ECONOMY_CHANNEL = config["guild_settings"].get("economy_channel")
+# -------------------------------------------
+# Async helpers for reading/writing JSON sections
+# -------------------------------------------
+async def read_json_section(section: str):
+    data = load_alliance()
+    return data.get(section, {})
 
-WELCOME_MESSAGE = config["guild_settings"].get(
-    "welcome_message", "Welcome **{usermention}**! You’ve successfully joined **{guildname}**."
-)
-LEAVE_MESSAGE = config["guild_settings"].get(
-    "leave_message", "**{usermention}** has left **{guildname}**. We hope to see them again."
-)
+async def write_json_section(section: str, value):
+    data = load_alliance()
+    data[section] = value
+    save_alliance(data)
 
-WELCOME_COLOR = config["guild_settings"].get("welcome_color", "#1e466f")
-LEAVE_COLOR = config["guild_settings"].get("leave_color", "#ff3b3b")
+# ===========================================
+# Load on startup
+# ===========================================
+alliance = load_alliance()
 
-# Economy settings
-STARTING_BALANCE = config["economy"].get("starting_balance", 0)
-WORK_MIN = config["economy"].get("work_min", 50)
-WORK_MAX = config["economy"].get("work_max", 150)
-ROB_MIN = config["economy"].get("rob_min", 20)
-ROB_MAX = config["economy"].get("rob_max", 200)
-COOLDOWNS = config["economy"].get("cooldowns", {"work": 3600, "rob": 7200})
+# Bot & roles
+TOKEN = alliance["bot"]["token"]
+FOUNDER_ROLE = alliance["bot"]["founder_role"]
+TIER1 = alliance["punishment_roles"].get("tier1", [])
+TIER2 = alliance["punishment_roles"].get("tier2", [])
+TIER3 = alliance["punishment_roles"].get("tier3", [])
+TIER4 = alliance["punishment_roles"].get("tier4", [])
 
-# ------------------------------------------------------------
-# JSON Databases Auto-Created
-# ------------------------------------------------------------
-for db in ["economy.json", "punishments.json", "count.json"]:
-    if not os.path.exists(db):
-        with open(db, "w") as f:
-            json.dump({}, f, indent=4)
+# Guild channels & messages
+WELCOME_CHANNEL = alliance["guild_settings"].get("welcome_channel")
+LEAVE_CHANNEL = alliance["guild_settings"].get("leave_channel")
+LOGS_CHANNEL = alliance["guild_settings"].get("logs_channel")
+COUNT_CHANNEL = alliance["guild_settings"].get("count_channel")
+ECONOMY_CHANNEL = alliance["guild_settings"].get("economy_channel")
 
-# Utility for reading/writing JSON
-async def read_json(file):
-    async with aiofiles.open(file, "r") as f:
-        data = await f.read()
-        return json.loads(data)
+WELCOME_MESSAGE = alliance["guild_settings"].get("welcome_message")
+LEAVE_MESSAGE = alliance["guild_settings"].get("leave_message")
+WELCOME_COLOR = alliance["guild_settings"].get("welcome_color", "#1e466f")
+LEAVE_COLOR = alliance["guild_settings"].get("leave_color", "#ff3b3b")
 
-async def write_json(file, data):
-    async with aiofiles.open(file, "w") as f:
-        await f.write(json.dumps(data, indent=4))
+# Economy
+STARTING_BALANCE = alliance["economy"].get("starting_balance", 0)
+WORK_MIN = alliance["economy"].get("work_min", 50)
+WORK_MAX = alliance["economy"].get("work_max", 150)
+ROB_MIN = alliance["economy"].get("rob_min", 20)
+ROB_MAX = alliance["economy"].get("rob_max", 200)
+COOLDOWNS = alliance["economy"].get("cooldowns", {"work": 3600, "rob": 7200})
+USERS_ECONOMY = alliance["economy"].get("users", {})
+
+# Punishments
+PUNISHMENTS = alliance["punishments"].get("cases", [])
+LAST_CASE_ID = alliance["punishments"].get("last_case_id", 0)
+
+# Counting
+COUNTING = alliance.get("counting", {})
 
 # ============================================================
 #                     BOT INITIALIZATION
@@ -190,23 +226,31 @@ def success_embed(msg):
 # ============================================================
 
 async def get_punishments():
-    return await read_json("punishments.json")
+    data = load_alliance()
+    return data.get("punishments", {})
 
-async def save_punishments(data):
-    await write_json("punishments.json", data)
+async def save_punishments(punishment_data):
+    data = load_alliance()
+    data["punishments"] = punishment_data
+    save_alliance(data)
 
 async def get_economy():
-    return await read_json("economy.json")
+    data = load_alliance()
+    return data.get("economy", {})
 
-async def save_economy(data):
-    await write_json("economy.json", data)
+async def save_economy(economy_data):
+    data = load_alliance()
+    data["economy"] = economy_data
+    save_alliance(data)
 
-async def get_count():
-    return await read_json("count.json")
+async def get_counting():
+    data = load_alliance()
+    return data.get("counting", {})
 
-async def save_count(data):
-    await write_json("count.json", data)
-
+async def save_counting(count_data):
+    data = load_alliance()
+    data["counting"] = count_data
+    save_alliance(data)
 # ============================================================
 #                     ECONOMY HELPER LOGIC
 # ============================================================
@@ -377,61 +421,49 @@ async def setup_cmd(interaction: Interaction):
 
     await interaction.response.send_message(embed=embed, view=v)
 
+    # Wait for setup to finish
     await v.wait()
 
-    # Save new config
-    with open("config.json", "r") as f:
-        current = json.load(f)
+    # Load current alliance.json
+    current = load_alliance()
 
-    for k, v2 in v.result.items():
-        if v2 is not None:
-            current[k] = v2
+    # Update guild settings
+    for key, value in v.result.items():
+        if value is not None:
+            current["guild_settings"][key] = value
 
-    with open("config.json", "w") as f:
-        json.dump(current, f, indent=4)
+    # Save updated alliance.json
+    save_alliance(current)
 
     await interaction.followup.send(
         embed=success_embed("Setup complete! Elura Utility is now fully configured."),
         ephemeral=True
-  )
+    )
 
 # ============================================================
 #                   WELCOME / LEAVE SYSTEM
 # ============================================================
 
-WELCOME_COLOR = 0x1e466f          # your hex blue
-LEAVE_COLOR   = 0xC72C3B          # bright red
-
-# ------------------------------------------------------------
-#   Welcome Message Template:
-#   **Welcome {usermention}!** You’ve successfully joined 
-#   **{guildname}**. We hope you enjoy your stay.
-# ------------------------------------------------------------
-
-# ------------------------------------------------------------
-#   Leave Message Template:
-#   {Usermention} has left **{guildname}**. 
-#   We hope to see them again in the future.
-# ------------------------------------------------------------
+WELCOME_COLOR = int(alliance["guild_settings"].get("welcome_color", "#1e466f")[1:], 16)
+LEAVE_COLOR = int(alliance["guild_settings"].get("leave_color", "#ff3b3b")[1:], 16)
 
 @bot.event
 async def on_member_join(member: discord.Member):
     try:
-        with open("config.json", "r") as f:
-            data = json.load(f)
-
-        channel_id = data.get("welcome_channel")
+        channel_id = alliance["guild_settings"].get("welcome_channel")
         if not channel_id:
             return
-        
+
         channel = member.guild.get_channel(int(channel_id))
         if not channel:
             return
 
-        # Create embed
-        embed = Embed(
+        embed = discord.Embed(
             title=f"Welcome to {member.guild.name}!",
-            description=f"**Welcome {member.mention}!** You’ve successfully joined **{member.guild.name}**.\nWe hope you enjoy your stay.",
+            description=alliance["guild_settings"]["welcome_message"].format(
+                usermention=member.mention,
+                guildname=member.guild.name
+            ),
             color=WELCOME_COLOR
         )
 
@@ -444,28 +476,24 @@ async def on_member_join(member: discord.Member):
     except Exception as e:
         print(f"Welcome error: {e}")
 
-# ------------------------------------------------------------
-#                      MEMBER LEAVE EVENT
-# ------------------------------------------------------------
 
 @bot.event
 async def on_member_remove(member: discord.Member):
     try:
-        with open("config.json", "r") as f:
-            data = json.load(f)
-
-        channel_id = data.get("leave_channel")
+        channel_id = alliance["guild_settings"].get("leave_channel")
         if not channel_id:
             return
-        
+
         channel = member.guild.get_channel(int(channel_id))
         if not channel:
             return
 
-        # Create embed
-        embed = Embed(
-            title=f"Member Left",
-            description=f"{member.mention} has left **{member.guild.name}**.\nWe hope to see them again in the future.",
+        embed = discord.Embed(
+            title="Member Left",
+            description=alliance["guild_settings"]["leave_message"].format(
+                usermention=member.mention,
+                guildname=member.guild.name
+            ),
             color=LEAVE_COLOR
         )
 
@@ -477,6 +505,7 @@ async def on_member_remove(member: discord.Member):
     except Exception as e:
         print(f"Leave error: {e}")
 
+
 # ============================================================
 #                         COUNTING SYSTEM
 # ============================================================
@@ -484,23 +513,15 @@ async def on_member_remove(member: discord.Member):
 @bot.event
 async def on_message(message: discord.Message):
 
-    # Ignore bot messages
     if message.author.bot:
         return
 
-    # Load config
-    with open("config.json", "r") as f:
-        config = json.load(f)
-
-    count_channel_id = config.get("count_channel")
-
-    # If message is NOT in the count channel → ignore
+    count_channel_id = alliance["guild_settings"].get("count_channel")
     if not count_channel_id or message.channel.id != int(count_channel_id):
         return await bot.process_commands(message)
 
-    # Load current count
-    count_data = await get_count()
-
+    # Load counting section from alliance.json
+    count_data = alliance.get("counting", {})
     guild_id = str(message.guild.id)
 
     if guild_id not in count_data:
@@ -516,10 +537,9 @@ async def on_message(message: discord.Message):
     try:
         num = int(message.content)
     except:
-        # Not a number → ignore silently
         return await bot.process_commands(message)
 
-    # Check if same user as last number
+    # Same user as last → wrong
     if last_user == str(message.author.id):
         await message.add_reaction("❌")
         await message.reply(
@@ -527,15 +547,17 @@ async def on_message(message: discord.Message):
         )
         count_data[guild_id]["current"] = 0
         count_data[guild_id]["last_user"] = None
-        await save_count(count_data)
+        alliance["counting"] = count_data
+        save_alliance(alliance)
         return await bot.process_commands(message)
 
-    # Correct next number
+    # Correct number
     if num == current + 1:
         await message.add_reaction("✅")
         count_data[guild_id]["current"] = num
         count_data[guild_id]["last_user"] = str(message.author.id)
-        await save_count(count_data)
+        alliance["counting"] = count_data
+        save_alliance(alliance)
 
     else:
         # Wrong number → reset
@@ -543,16 +565,15 @@ async def on_message(message: discord.Message):
         await message.reply(
             f"{message.author.mention} RUINED IT AT **{num}**!! Next number is **1**. **Wrong number.**"
         )
-
-        # Reset
         count_data[guild_id]["current"] = 0
         count_data[guild_id]["last_user"] = None
-        await save_count(count_data)
+        alliance["counting"] = count_data
+        save_alliance(alliance)
 
     await bot.process_commands(message)
-
-  # ===========================================
-# SECTION 6 — PART 1: WARNINGS SYSTEM
+    
+# ===========================================
+# SECTION 6 — PART 1: WARNINGS SYSTEM (All-in-One JSON)
 # ===========================================
 
 import discord
@@ -560,70 +581,44 @@ from discord import app_commands
 from discord.ext import commands
 import uuid
 import datetime
-import json
-import asyncio
-import os
 
-# Ensure data folder exists
-if not os.path.exists("data"):
-    os.mkdir("data")
-
-punishments_file = "data/punishments.json"
-
-# Load or create JSON
-if os.path.exists(punishments_file):
-    with open(punishments_file, "r") as f:
-        punishments = json.load(f)
-else:
-    punishments = {}
-
-# Helper functions
-def save_punishments():
-    with open(punishments_file, "w") as f:
-        json.dump(punishments, f, indent=4)
-
+# Helper functions for all-in-one alliance.json
 def new_case_id():
     return str(uuid.uuid4())[:8].upper()
 
 def now_utc():
     return datetime.datetime.utcnow().strftime("%Y-%m-%d • %H:%M UTC")
 
-# Tier Permissions mapping
-TIER_COMMANDS = {
-    "1438894988237738087": ["warn"],
-    "1438894985909899285": ["warn", "warnings"],
-    "1438894986891497607": ["warn", "warnings", "mute"],
-    "1438894984677031957": ["warn", "warnings", "mute", "kick"],
-    "1438894983456227418": ["warn", "warnings", "mute", "kick", "ban", "unban"],
-    "1438894982537810081": ["warn", "warnings", "mute", "kick", "ban", "unban"],
-    "1438894980646305922": ["warn", "warnings", "mute", "kick", "ban", "unban"],
-    "1438894979119579169": ["warn", "warnings", "mute", "kick", "ban", "unban"],
-    "1438894978230259793": ["ALL"]  # Founders bypass
-}
-
 def get_user_tier(member: discord.Member):
     for role in member.roles:
-        if str(role.id) in TIER_COMMANDS:
+        if str(role.id) in TIER1 + TIER2 + TIER3 + TIER4:
             return str(role.id)
+    if str(FOUNDER) in [str(r.id) for r in member.roles]:
+        return "FOUNDER"
     return None
 
 def has_permission(member: discord.Member, command: str):
     tier = get_user_tier(member)
     if tier is None:
         return False
-    if "ALL" in TIER_COMMANDS[tier]:
+    if tier == "FOUNDER":
         return True
-    return command in TIER_COMMANDS[tier]
+    role_commands = {}
+    for t, roles in zip(["tier1","tier2","tier3","tier4"], [TIER1,TIER2,TIER3,TIER4]):
+        for r in roles:
+            role_commands[str(r)] = {
+                "tier1": ["warn"],
+                "tier2": ["warn","warnings"],
+                "tier3": ["warn","warnings","mute"],
+                "tier4": ["warn","warnings","mute","kick","ban","unban"]
+            }[t]
+    return command in role_commands.get(tier, [])
 
-# Mod log channel (to be set via /setup)
-mod_log_channel = None
-
-async def log_action(guild, embed):
-    if mod_log_channel is None:
-        return
-    channel = guild.get_channel(mod_log_channel)
-    if channel:
-        await channel.send(embed=embed)
+async def log_action(guild: discord.Guild, embed: discord.Embed):
+    if LOGS_CHANNEL:
+        channel = guild.get_channel(int(LOGS_CHANNEL))
+        if channel:
+            await channel.send(embed=embed)
 
 # ------------------------------
 # /warn
@@ -633,14 +628,19 @@ async def log_action(guild, embed):
 async def warn_cmd(interaction: discord.Interaction, member: discord.Member, reason: str):
     if member.id == interaction.user.id:
         return await interaction.response.send_message("❌ You cannot warn yourself.", ephemeral=True)
-
     if not has_permission(interaction.user, "warn"):
         return await interaction.response.send_message("❌ You lack permission to warn.", ephemeral=True)
 
     case_id = new_case_id()
     guild_id = str(interaction.guild.id)
 
-    punishments.setdefault(guild_id, {"cases": []})
+    # Initialize punishments
+    if "punishments" not in alliance:
+        alliance["punishments"] = {"cases": [], "last_case_id": 0}
+    if guild_id not in alliance["punishments"]:
+        alliance["punishments"]["cases"] = []
+
+    # Add case
     data = {
         "case": case_id,
         "type": "warn",
@@ -649,8 +649,9 @@ async def warn_cmd(interaction: discord.Interaction, member: discord.Member, rea
         "reason": reason,
         "timestamp": now_utc()
     }
-    punishments[guild_id]["cases"].append(data)
-    save_punishments()
+    alliance["punishments"]["cases"].append(data)
+    alliance["punishments"]["last_case_id"] += 1
+    save_alliance(alliance)
 
     embed = discord.Embed(title="⚠️ Warning Issued", color=discord.Color.yellow())
     embed.add_field(name="User", value=member.mention, inline=False)
@@ -668,23 +669,24 @@ async def warn_cmd(interaction: discord.Interaction, member: discord.Member, rea
 @app_commands.describe(member="User to check")
 async def warnings_cmd(interaction: discord.Interaction, member: discord.Member):
     guild_id = str(interaction.guild.id)
-    user_list = [c for c in punishments.get(guild_id, {}).get("cases", []) if c["user"] == member.id]
+    all_cases = alliance.get("punishments", {}).get("cases", [])
+    user_cases = [c for c in all_cases if c["user"] == member.id]
 
-    warn_count = sum(1 for c in user_list if c["type"] == "warn")
-    mute_count = sum(1 for c in user_list if c["type"] == "mute")
-    kick_count = sum(1 for c in user_list if c["type"] == "kick")
-    ban_count = sum(1 for c in user_list if c["type"] == "ban")
+    warn_count = sum(1 for c in user_cases if c["type"] == "warn")
+    mute_count = sum(1 for c in user_cases if c["type"] == "mute")
+    kick_count = sum(1 for c in user_cases if c["type"] == "kick")
+    ban_count = sum(1 for c in user_cases if c["type"] == "ban")
 
     embed = discord.Embed(title="📄 Punishment History", color=discord.Color.blurple())
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.add_field(name="User", value=f"{member.mention}\n`{member.id}`", inline=False)
     embed.add_field(name="Totals", value=f"⚠️ Warned: {warn_count}\n🔇 Muted: {mute_count}\n👢 Kicked: {kick_count}\n⛔ Banned: {ban_count}", inline=False)
 
-    if not user_list:
+    if not user_cases:
         embed.add_field(name="Cases", value="No punishments found.", inline=False)
     else:
         text = ""
-        for c in user_list:
+        for c in user_cases:
             text += f"**Case {c['case']}** — {c['type'].capitalize()}\n• Reason: `{c['reason']}`\n• Staff: <@{c['moderator']}>\n• Time: `{c['timestamp']}`\n\n"
         embed.add_field(name="Case List", value=text, inline=False)
 
@@ -705,13 +707,13 @@ class ConfirmUnwarn(discord.ui.View):
         if interaction.user.id != self.staff.id:
             return await interaction.response.send_message("❌ Not your confirmation.", ephemeral=True)
 
-        guild_cases = punishments.get(self.guild_id, {}).get("cases", [])
+        guild_cases = alliance.get("punishments", {}).get("cases", [])
         case_data = next((c for c in guild_cases if c["case"] == self.case_id), None)
         if not case_data:
             return await interaction.response.edit_message(content="❌ Case already removed.", view=None)
 
         guild_cases.remove(case_data)
-        save_punishments()
+        save_alliance(alliance)
 
         embed = discord.Embed(title="🗑 Case Removed", color=discord.Color.green())
         embed.add_field(name="Case ID", value=self.case_id)
@@ -725,7 +727,6 @@ class ConfirmUnwarn(discord.ui.View):
     async def no(self, interaction: discord.Interaction, button):
         await interaction.response.edit_message(content="❌ Cancelled.", view=None)
 
-
 @tree.command(name="unwarn", description="Remove a punishment case.")
 @app_commands.describe(case_id="Case ID")
 async def unwarn_cmd(interaction: discord.Interaction, case_id: str):
@@ -733,16 +734,15 @@ async def unwarn_cmd(interaction: discord.Interaction, case_id: str):
         return await interaction.response.send_message("❌ You lack permission.", ephemeral=True)
 
     guild_id = str(interaction.guild.id)
-    guild_cases = punishments.get(guild_id, {}).get("cases", [])
+    guild_cases = alliance.get("punishments", {}).get("cases", [])
     if not any(c["case"] == case_id for c in guild_cases):
         return await interaction.response.send_message("❌ Invalid case ID.", ephemeral=True)
 
     view = ConfirmUnwarn(interaction.user, guild_id, case_id)
     await interaction.response.send_message(f"Are you sure you want to remove case `{case_id}`?", view=view, ephemeral=True)
 
-
 # ===========================================
-# SECTION 6 — PART 2: MODERATION COMMANDS
+# SECTION 6 — PART 2: MODERATION COMMANDS (All-in-One JSON)
 # ===========================================
 
 # ------------------------------
@@ -753,7 +753,6 @@ async def unwarn_cmd(interaction: discord.Interaction, case_id: str):
 async def mute_cmd(interaction: discord.Interaction, member: discord.Member, minutes: int, reason: str):
     if not has_permission(interaction.user, "mute"):
         return await interaction.response.send_message("❌ You lack permission to mute.", ephemeral=True)
-
     if member.id == interaction.user.id:
         return await interaction.response.send_message("❌ You cannot mute yourself.", ephemeral=True)
 
@@ -763,11 +762,12 @@ async def mute_cmd(interaction: discord.Interaction, member: discord.Member, min
 
     await member.add_roles(mute_role, reason=reason)
 
-    # Record punishment
+    # Record punishment in alliance.json
     case_id = new_case_id()
     guild_id = str(interaction.guild.id)
-    punishments.setdefault(guild_id, {"cases": []})
-    data = {
+    if "punishments" not in alliance:
+        alliance["punishments"] = {"cases": [], "last_case_id": 0}
+    alliance["punishments"]["cases"].append({
         "case": case_id,
         "type": "mute",
         "user": member.id,
@@ -775,9 +775,9 @@ async def mute_cmd(interaction: discord.Interaction, member: discord.Member, min
         "reason": reason,
         "timestamp": now_utc(),
         "duration": minutes
-    }
-    punishments[guild_id]["cases"].append(data)
-    save_punishments()
+    })
+    alliance["punishments"]["last_case_id"] += 1
+    save_alliance(alliance)
 
     embed = discord.Embed(title="🔇 User Muted", color=discord.Color.orange())
     embed.add_field(name="User", value=member.mention)
@@ -807,7 +807,6 @@ async def mute_cmd(interaction: discord.Interaction, member: discord.Member, min
 async def kick_cmd(interaction: discord.Interaction, member: discord.Member, reason: str):
     if not has_permission(interaction.user, "kick"):
         return await interaction.response.send_message("❌ You lack permission to kick.", ephemeral=True)
-
     if member.id == interaction.user.id:
         return await interaction.response.send_message("❌ You cannot kick yourself.", ephemeral=True)
 
@@ -819,17 +818,18 @@ async def kick_cmd(interaction: discord.Interaction, member: discord.Member, rea
     # Record punishment
     case_id = new_case_id()
     guild_id = str(interaction.guild.id)
-    punishments.setdefault(guild_id, {"cases": []})
-    data = {
+    if "punishments" not in alliance:
+        alliance["punishments"] = {"cases": [], "last_case_id": 0}
+    alliance["punishments"]["cases"].append({
         "case": case_id,
         "type": "kick",
         "user": member.id,
         "moderator": interaction.user.id,
         "reason": reason,
         "timestamp": now_utc()
-    }
-    punishments[guild_id]["cases"].append(data)
-    save_punishments()
+    })
+    alliance["punishments"]["last_case_id"] += 1
+    save_alliance(alliance)
 
     embed = discord.Embed(title="👢 User Kicked", color=discord.Color.red())
     embed.add_field(name="User", value=member.mention)
@@ -847,7 +847,6 @@ async def kick_cmd(interaction: discord.Interaction, member: discord.Member, rea
 async def ban_cmd(interaction: discord.Interaction, member: discord.Member, reason: str):
     if not has_permission(interaction.user, "ban"):
         return await interaction.response.send_message("❌ You lack permission to ban.", ephemeral=True)
-
     if member.id == interaction.user.id:
         return await interaction.response.send_message("❌ You cannot ban yourself.", ephemeral=True)
 
@@ -859,17 +858,18 @@ async def ban_cmd(interaction: discord.Interaction, member: discord.Member, reas
     # Record punishment
     case_id = new_case_id()
     guild_id = str(interaction.guild.id)
-    punishments.setdefault(guild_id, {"cases": []})
-    data = {
+    if "punishments" not in alliance:
+        alliance["punishments"] = {"cases": [], "last_case_id": 0}
+    alliance["punishments"]["cases"].append({
         "case": case_id,
         "type": "ban",
         "user": member.id,
         "moderator": interaction.user.id,
         "reason": reason,
         "timestamp": now_utc()
-    }
-    punishments[guild_id]["cases"].append(data)
-    save_punishments()
+    })
+    alliance["punishments"]["last_case_id"] += 1
+    save_alliance(alliance)
 
     embed = discord.Embed(title="⛔ User Banned", color=discord.Color.dark_red())
     embed.add_field(name="User", value=member.mention)
@@ -905,17 +905,18 @@ async def unban_cmd(interaction: discord.Interaction, user_id: str, reason: str)
     # Record unban
     case_id = new_case_id()
     guild_id = str(interaction.guild.id)
-    punishments.setdefault(guild_id, {"cases": []})
-    data = {
+    if "punishments" not in alliance:
+        alliance["punishments"] = {"cases": [], "last_case_id": 0}
+    alliance["punishments"]["cases"].append({
         "case": case_id,
         "type": "unban",
         "user": target.id,
         "moderator": interaction.user.id,
         "reason": reason,
         "timestamp": now_utc()
-    }
-    punishments[guild_id]["cases"].append(data)
-    save_punishments()
+    })
+    alliance["punishments"]["last_case_id"] += 1
+    save_alliance(alliance)
 
     embed = discord.Embed(title="✅ User Unbanned", color=discord.Color.green())
     embed.add_field(name="User", value=f"{target} (`{target.id}`)")
@@ -924,9 +925,9 @@ async def unban_cmd(interaction: discord.Interaction, user_id: str, reason: str)
     embed.set_footer(text=f"Issued by {interaction.user} • {now_utc()}")
     await interaction.response.send_message(embed=embed)
     await log_action(interaction.guild, embed)
-
-  # ===========================================
-# SECTION 6 — PART 3: LOGGING & UTILITIES
+    
+ # ===========================================
+# SECTION 6 — PART 3: LOGGING & UTILITIES (All-in-One)
 # ===========================================
 
 # ------------------------------
@@ -964,74 +965,74 @@ async def create_log_embed(action_type: str, member: discord.Member, moderator: 
     return embed
 
 # ------------------------------
-# Update /warn, /mute, /kick, /ban, /unban to use centralized logging
-# ------------------------------
-# Example: replace direct embed in /warn with:
-# embed = await create_log_embed("warn", member, interaction.user, reason, case_id)
-
-# Then send:
-# await interaction.response.send_message(embed=embed)
-# await log_action(interaction.guild, embed)
-
-# ------------------------------
-# JSON Utilities
+# Centralized punishment JSON functions
 # ------------------------------
 def get_guild_cases(guild_id: str):
-    return punishments.setdefault(guild_id, {"cases": []})["cases"]
+    """Return list of cases for a guild from alliance.json"""
+    if "punishments" not in alliance:
+        alliance["punishments"] = {"cases": [], "last_case_id": 0}
+    return [c for c in alliance["punishments"]["cases"] if str(c.get("guild_id")) == guild_id]
 
 def add_case(guild_id: str, case_data: dict):
-    punishments.setdefault(guild_id, {"cases": []})["cases"].append(case_data)
-    save_punishments()
+    """Add a punishment case to alliance.json"""
+    if "punishments" not in alliance:
+        alliance["punishments"] = {"cases": [], "last_case_id": 0}
+    case_data["guild_id"] = guild_id
+    alliance["punishments"]["cases"].append(case_data)
+    alliance["punishments"]["last_case_id"] += 1
+    save_alliance(alliance)
 
 def remove_case(guild_id: str, case_id: str):
-    guild_cases = get_guild_cases(guild_id)
+    """Remove a punishment case by ID from alliance.json"""
+    guild_cases = [c for c in alliance["punishments"]["cases"] if str(c.get("guild_id")) == guild_id]
     case = next((c for c in guild_cases if c["case"] == case_id), None)
     if case:
-        guild_cases.remove(case)
-        save_punishments()
+        alliance["punishments"]["cases"].remove(case)
+        save_alliance(alliance)
         return case
     return None
 
 # ------------------------------
-# Integration Notes for main.py
+# Integration Notes
 # ------------------------------
-# 1. Ensure `tree` is the global bot AppCommandTree:
-#       tree = bot.tree
+# 1. All moderation commands (/warn, /mute, /kick, /ban, /unban) now:
+#    - Use `add_case()` to save in alliance.json
+#    - Use `remove_case()` to remove
+#    - Use `create_log_embed()` for embeds
+#    - Call `await log_action(guild, embed)` to send log
 #
-# 2. Ensure mod_log_channel is set via /setup command:
-#       mod_log_channel = <your channel id>
+# 2. Permissions handled via `has_permission()`
 #
-# 3. All punishment commands are now JSON-backed and ultra-professional.
+# 3. No separate JSON files required.
 #
-# 4. Use centralized embed function to maintain consistent branding/colors.
-#
-# 5. Add any new commands following the same pattern:
-#       - Check permission via `has_permission()`
-#       - Record case in `punishments.json`
-#       - Create embed via `create_log_embed()`
-#       - Log via `log_action()`
+# 4. This keeps all punishment data in one clean, professional JSON file.
 
-# ===========================================
-# SECTION 7 — ECONOMY SYSTEM
+# ===========================================  
+# SECTION 7 — ECONOMY SYSTEM (All-in-One with alliances.json)  
 # ===========================================
 
 import random
+import os
+import json
+from discord import app_commands
+import discord
 
-economy_file = "data/economy.json"
+alliance_file = "data/alliances.json"
 
-# Load or create JSON
-if os.path.exists(economy_file):
-    with open(economy_file, "r") as f:
-        economy = json.load(f)
+# Load or create alliances.json
+if os.path.exists(alliance_file):
+    with open(alliance_file, "r") as f:
+        alliance = json.load(f)
 else:
-    economy = {}
+    alliance = {}
 
-def save_economy():
-    with open(economy_file, "w") as f:
-        json.dump(economy, f, indent=4)
+def save_alliance(data):
+    with open(alliance_file, "w") as f:
+        json.dump(data, f, indent=4)
 
 def get_user_data(guild_id, user_id):
-    guild_data = economy.setdefault(str(guild_id), {})
+    """Return or create user economy data inside alliances.json"""
+    guild_data = alliance.setdefault(str(guild_id), {})
     user_data = guild_data.setdefault(str(user_id), {"wallet": 0, "bank": 0})
     return user_data
 
@@ -1060,7 +1061,7 @@ async def work_cmd(interaction: discord.Interaction):
     user_data = get_user_data(interaction.guild.id, interaction.user.id)
     earnings = random.randint(50, 300)
     user_data['wallet'] += earnings
-    save_economy()
+    save_alliance(alliance)
     embed = discord.Embed(
         title="💼 Work Completed",
         description=f"You worked hard and earned **${earnings}**!",
@@ -1088,7 +1089,7 @@ async def rob_cmd(interaction: discord.Interaction, target: discord.Member):
         stolen = random.randint(50, min(200, target_data['wallet']))
         user_data['wallet'] += stolen
         target_data['wallet'] -= stolen
-        save_economy()
+        save_alliance(alliance)
         embed = discord.Embed(
             title="💰 Robbery Successful",
             description=f"You successfully robbed **{target.display_name}** for **${stolen}**!",
@@ -1097,8 +1098,8 @@ async def rob_cmd(interaction: discord.Interaction, target: discord.Member):
     else:
         penalty = random.randint(20, min(100, user_data['wallet']))
         user_data['wallet'] -= penalty
-        target_data['wallet'] += penalty  # Optional: reward target
-        save_economy()
+        target_data['wallet'] += penalty
+        save_alliance(alliance)
         embed = discord.Embed(
             title="❌ Robbery Failed",
             description=f"You got caught! Paid **${penalty}** as penalty.",
@@ -1127,7 +1128,7 @@ async def deposit_cmd(interaction: discord.Interaction, amount: str):
 
     user_data['wallet'] -= deposit_amount
     user_data['bank'] += deposit_amount
-    save_economy()
+    save_alliance(alliance)
 
     embed = discord.Embed(
         title="🏦 Deposit Successful",
@@ -1157,7 +1158,7 @@ async def withdraw_cmd(interaction: discord.Interaction, amount: str):
 
     user_data['wallet'] += withdraw_amount
     user_data['bank'] -= withdraw_amount
-    save_economy()
+    save_alliance(alliance)
 
     embed = discord.Embed(
         title="🏦 Withdraw Successful",
@@ -1167,27 +1168,129 @@ async def withdraw_cmd(interaction: discord.Interaction, amount: str):
     await interaction.response.send_message(embed=embed)
 
 # ------------------------------
-# Integration Notes
+# /gamble
 # ------------------------------
-# 1. All economy data stored in `data/economy.json`.
+@tree.command(name="gamble", description="Gamble money from your wallet.")
+@app_commands.describe(amount="Amount to gamble")
+async def gamble_cmd(interaction: discord.Interaction, amount: int):
+    user_data = get_user_data(interaction.guild.id, interaction.user.id)
+    wallet = user_data['wallet']
+
+    if amount > wallet:
+        return await interaction.response.send_message("❌ You don't have that much in wallet.", ephemeral=True)
+
+    win = random.choice([True, False])
+    if win:
+        winnings = int(amount * random.uniform(1.2, 2.0))
+        user_data['wallet'] += winnings
+        result_text = f"You won **${winnings}**!"
+        color = discord.Color.green()
+    else:
+        user_data['wallet'] -= amount
+        result_text = f"You lost **${amount}**."
+        color = discord.Color.red()
+
+    save_alliance(alliance)
+    embed = discord.Embed(title="🎰 Gamble Result", description=result_text, color=color)
+    await interaction.response.send_message(embed=embed)
+
+# ------------------------------
+# /leaderboard
+# ------------------------------
+@tree.command(name="leaderboard", description="Show wallet leaderboard for this guild.")
+async def leaderboard_cmd(interaction: discord.Interaction):
+    guild_data = alliance.get(str(interaction.guild.id), {})
+    leaderboard = sorted(guild_data.items(), key=lambda x: x[1].get("wallet", 0), reverse=True)
+    embed = discord.Embed(title="🏆 Wallet Leaderboard", color=discord.Color.gold())
+    for i, (user_id, data) in enumerate(leaderboard[:10], start=1):
+        member = interaction.guild.get_member(int(user_id))
+        name = member.display_name if member else f"User ID {user_id}"
+        embed.add_field(name=f"{i}. {name}", value=f"${data.get('wallet', 0)}", inline=False)
+    await interaction.response.send_message(embed=embed)
+
+# ------------------------------
+# /shop
+# ------------------------------
+shop_items = {
+    "VIP": 500,
+    "Special Role": 300,
+    "Custom Title": 200
+}
+
+@tree.command(name="shop", description="View or buy items from the shop.")
+@app_commands.describe(item="Item to buy (optional)")
+async def shop_cmd(interaction: discord.Interaction, item: str = None):
+    user_data = get_user_data(interaction.guild.id, interaction.user.id)
+    if not item:
+        embed = discord.Embed(title="🛒 Shop", color=discord.Color.blue())
+        for name, price in shop_items.items():
+            embed.add_field(name=name, value=f"${price}", inline=False)
+        await interaction.response.send_message(embed=embed)
+    else:
+        item_price = shop_items.get(item)
+        if not item_price:
+            return await interaction.response.send_message("❌ Item not found.", ephemeral=True)
+        if user_data['wallet'] < item_price:
+            return await interaction.response.send_message("❌ You don't have enough money.", ephemeral=True)
+        user_data['wallet'] -= item_price
+        save_alliance(alliance)
+        await interaction.response.send_message(f"✅ You bought **{item}** for **${item_price}**!")
+
+# ------------------------------
+# Notes
+# ------------------------------
+# 1. All economy data stored inside `alliances.json`.
 # 2. Supports slash commands only.
-# 3. All embeds professional and consistent with Elura branding.
-# 4. Can extend with /gamble, /leaderboard, /shop later.
+# 3. Combines /balance, /work, /rob, /deposit, /withdraw, /gamble, /leaderboard, /shop.
+# 4. All embeds professional and consistent with branding.
 
 # ===========================================
-# SECTION 8 — HELP SYSTEM (PROFESSIONAL)
+# SECTION 8 — HELP SYSTEM (DYNAMIC & PROFESSIONAL)
 # ===========================================
 
 import discord
 from discord.ui import Select, View
+import json
+import os
 
-# Command categories with descriptions and optional restricted flag
+# ------------------------------
+# Load alliances.json
+# ------------------------------
+ALLIANCE_FILE = "data/alliances.json"
+
+def load_alliance():
+    if os.path.exists(ALLIANCE_FILE):
+        with open(ALLIANCE_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+alliance = load_alliance()
+
+# ------------------------------
+# Dynamic economy settings
+# ------------------------------
+ECONOMY_SETTINGS = alliance.get("economy", {})
+STARTING_BALANCE = ECONOMY_SETTINGS.get("starting_balance", 0)
+WORK_MIN = ECONOMY_SETTINGS.get("work_min", 50)
+WORK_MAX = ECONOMY_SETTINGS.get("work_max", 150)
+ROB_MIN = ECONOMY_SETTINGS.get("rob_min", 20)
+ROB_MAX = ECONOMY_SETTINGS.get("rob_max", 200)
+SHOP_ITEMS = ECONOMY_SETTINGS.get("shop", [])
+COOLDOWNS = ECONOMY_SETTINGS.get("cooldowns", {"work": 3600, "rob": 7200})
+
+# ------------------------------
+# Command categories
+# ------------------------------
 HELP_CATEGORIES = {
     "General": [
         {"name": "/setup", "description": "Configure server channels and settings."},
-        {"name": "/balance", "description": "Check your wallet and bank balance."},
-        {"name": "/work", "description": "Work to earn coins."},
-        {"name": "/rob", "description": "Attempt to rob another member."},
+        {"name": "/balance", "description": f"Check your wallet and bank balance. Starting balance: ${STARTING_BALANCE}."},
+        {"name": "/work", "description": f"Work to earn coins ({WORK_MIN}-{WORK_MAX})."},
+        {"name": "/rob", "description": f"Attempt to rob another member ({ROB_MIN}-{ROB_MAX})."},
+        {"name": "/gamble", "description": "Gamble your coins for a chance to win big."},
+        {"name": "/bet", "description": "Place a bet on a game or outcome."},
+        {"name": "/bj", "description": "Play blackjack against the bot."},
+        {"name": "/shop", "description": f"View items available in the shop ({len(SHOP_ITEMS)} items)."},
     ],
     "Moderation": [
         {"name": "/warn", "description": "Issue a warning to a member.", "restricted": True},
@@ -1198,11 +1301,6 @@ HELP_CATEGORIES = {
         {"name": "/ban", "description": "Ban a member from the server.", "restricted": True},
         {"name": "/unban", "description": "Unban a member.", "restricted": True},
     ],
-    "Economy": [
-        {"name": "/balance", "description": "View wallet and bank balance."},
-        {"name": "/deposit", "description": "Deposit money into bank."},
-        {"name": "/withdraw", "description": "Withdraw money from bank."},
-    ],
     "Utilities": [
         {"name": "/tr", "description": "Translate a message to English."},
         {"name": "/count", "description": "Check counting channel stats."},
@@ -1212,10 +1310,16 @@ HELP_CATEGORIES = {
     ]
 }
 
+# ------------------------------
+# Help dropdown & view
+# ------------------------------
 class HelpDropdown(Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label=category, description=f"View {len(HELP_CATEGORIES[category])} commands")
+            discord.SelectOption(
+                label=category, 
+                description=f"View {len(HELP_CATEGORIES[category])} commands"
+            )
             for category in HELP_CATEGORIES
         ]
         super().__init__(placeholder="Select a command category...", min_values=1, max_values=1, options=options)
@@ -1244,7 +1348,7 @@ class HelpView(View):
         self.add_item(HelpDropdown())
 
 # ------------------------------
-# /help
+# /help command
 # ------------------------------
 @tree.command(name="help", description="Display the professional help menu with all commands.")
 async def help_cmd(interaction: discord.Interaction):
@@ -1255,7 +1359,7 @@ async def help_cmd(interaction: discord.Interaction):
     )
     embed.set_footer(text="Elura Utility • Professional and clean interface")
     await interaction.response.send_message(embed=embed, view=HelpView())
-
+    
 # ------------------------------
 # On Ready Event
 # ------------------------------
@@ -1287,7 +1391,9 @@ async def on_ready():
 # ------------------------------
 # Run Bot
 # ------------------------------
+token = alliance.get("bot", {}).get("token")
+
 if token:
     bot.run(token)
 else:
-    print("❌ No token found in config.json! Please add your bot token under the 'token' key.")
+    print("❌ No token found in data/alliances.json! Please add your bot token under alliance['bot']['token'].")
