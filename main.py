@@ -12,37 +12,84 @@ from deep_translator import GoogleTranslator
 from dotenv import load_dotenv
 
 # ------------------------------------------------------------
-# Load or Create Config
+# Load or create config
 # ------------------------------------------------------------
 if not os.path.exists("config.json"):
+    default_config = {
+        "token": "",
+        "founder_role": "1438894978230259793",
+        "punishment_roles": {
+            "tier1": [],
+            "tier2": [],
+            "tier3": [],
+            "tier4": []
+        },
+        "guild_settings": {
+            "welcome_channel": None,
+            "leave_channel": None,
+            "logs_channel": None,
+            "count_channel": None,
+            "economy_channel": None,
+            "welcome_message": "Welcome **{usermention}**! You’ve successfully joined **{guildname}**. We hope you enjoy your stay.",
+            "leave_message": "**{usermention}** has left **{guildname}**. We hope to see them again in the future.",
+            "welcome_color": "#1e466f",
+            "leave_color": "#ff3b3b"
+        },
+        "economy": {
+            "starting_balance": 0,
+            "work_min": 50,
+            "work_max": 150,
+            "rob_min": 20,
+            "rob_max": 200,
+            "cooldowns": {
+                "work": 3600,
+                "rob": 7200
+            }
+        }
+    }
     with open("config.json", "w") as f:
-        json.dump({
-            "token": "",
-            "guild_id": "",
-            "welcome_channel": "",
-            "leave_channel": "",
-            "log_channel": "",
-            "count_channel": "",
-            "economy_channel": "",
-            "founder_role": "1438894978230259793",
-            "tier1_roles": ["1438894988237738087"],
-            "tier2_roles": ["1438894985909899285", "1438894986891497607"],
-            "tier3_roles": ["1438894984677031957"],
-            "tier4_roles": [
-                "1438894983456227418",
-                "1438894982537810081",
-                "1438894980646305922",
-                "1438894979119579169",
-                "1438894978230259793"
-            ]
-        }, f, indent=4)
+        json.dump(default_config, f, indent=4)
 
+# ------------------------------------------------------------
 # Load config
+# ------------------------------------------------------------
 with open("config.json", "r") as f:
     config = json.load(f)
 
-# Get bot token from config
+# Pull bot token
 token = config["token"]
+
+# Punishment tiers
+FOUNDER_ROLE = config["founder_role"]
+TIER1 = config["punishment_roles"].get("tier1", [])
+TIER2 = config["punishment_roles"].get("tier2", [])
+TIER3 = config["punishment_roles"].get("tier3", [])
+TIER4 = config["punishment_roles"].get("tier4", [])
+
+# Guild channels & settings
+WELCOME_CHANNEL = config["guild_settings"].get("welcome_channel")
+LEAVE_CHANNEL = config["guild_settings"].get("leave_channel")
+LOGS_CHANNEL = config["guild_settings"].get("logs_channel")
+COUNT_CHANNEL = config["guild_settings"].get("count_channel")
+ECONOMY_CHANNEL = config["guild_settings"].get("economy_channel")
+
+WELCOME_MESSAGE = config["guild_settings"].get(
+    "welcome_message", "Welcome **{usermention}**! You’ve successfully joined **{guildname}**."
+)
+LEAVE_MESSAGE = config["guild_settings"].get(
+    "leave_message", "**{usermention}** has left **{guildname}**. We hope to see them again."
+)
+
+WELCOME_COLOR = config["guild_settings"].get("welcome_color", "#1e466f")
+LEAVE_COLOR = config["guild_settings"].get("leave_color", "#ff3b3b")
+
+# Economy settings
+STARTING_BALANCE = config["economy"].get("starting_balance", 0)
+WORK_MIN = config["economy"].get("work_min", 50)
+WORK_MAX = config["economy"].get("work_max", 150)
+ROB_MIN = config["economy"].get("rob_min", 20)
+ROB_MAX = config["economy"].get("rob_max", 200)
+COOLDOWNS = config["economy"].get("cooldowns", {"work": 3600, "rob": 7200})
 
 # ------------------------------------------------------------
 # JSON Databases Auto-Created
@@ -83,12 +130,6 @@ tree = bot.tree
 # ============================================================
 #                   PERMISSION CHECK SYSTEM
 # ============================================================
-
-FOUNDER = config["founder_role"]
-TIER1 = config["tier1_roles"]
-TIER2 = config["tier2_roles"]
-TIER3 = config["tier3_roles"]
-TIER4 = config["tier4_roles"]
 
 def has_role(user: discord.Member, role_id: str):
     return discord.utils.get(user.roles, id=int(role_id)) is not None
